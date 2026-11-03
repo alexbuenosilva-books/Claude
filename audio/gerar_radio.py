@@ -6,9 +6,11 @@ from piper import PiperVoice, SynthesisConfig
 VOICE = sys.argv[1] if len(sys.argv) > 1 else "voices/en_US-ryan-high.onnx"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "radio.wav"
 rng = np.random.default_rng(7)
+TS = float(sys.argv[3]) if len(sys.argv) > 3 else 0.22  # timing scale for pauses
+TD = float(sys.argv[4]) if len(sys.argv) > 4 else 0.45  # timing scale for dropouts
 voice = PiperVoice.load(VOICE)
 SR = voice.config.sample_rate
-cfg = SynthesisConfig(length_scale=1.12, noise_scale=0.5, noise_w_scale=0.6)
+cfg = SynthesisConfig(length_scale=1.0, noise_scale=0.5, noise_w_scale=0.6)
 
 
 def tts(text):
@@ -64,10 +66,12 @@ def say(text, keep=1.0, fin=0.004):
 
 
 def drop(sec):  # reception failure: no voice, static surges
+    sec *= TD
     add(sil(sec), 0.0)
 
 
 def pause(sec):
+    sec *= TS
     add(sil(sec))
 
 
@@ -78,9 +82,9 @@ def tone(sec=1.6):  # two-tone attention signal
 
 
 # ---------- script ----------
-pause(1.2)
-drop(0.6)
-tone(1.4)
+pause(0.6)
+drop(0.4)
+tone(0.9)
 drop(0.35)
 pause(0.4)
 say("This is")
@@ -136,7 +140,7 @@ pause(1.4)
 say("This is")
 drop(0.35)
 say("Emergency Operations", keep=0.30)
-drop(2.2)
+drop(1.6)
 
 v = np.concatenate(voice_track)
 m = np.concatenate(mask)
@@ -194,7 +198,7 @@ noise = (0.075 + 0.03 * np.sin(2 * np.pi * 0.31 * t)) * hiss \
 
 mix = v * 0.85 + noise
 # squelch clicks at start/end
-for pos in [int(1.15 * SR), N - int(0.8 * SR)]:
+for pos in [int(0.33 * SR), N - int(0.8 * SR)]:
     mix[pos:pos + 80] += rng.uniform(-0.8, 0.8, 80)
 mix[: int(0.3 * SR)] *= np.linspace(0, 1, int(0.3 * SR))
 mix[N - int(0.6 * SR):] *= np.linspace(1, 0, int(0.6 * SR)) ** 2
