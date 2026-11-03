@@ -166,9 +166,9 @@ v = np.round(v * 64) / 64
 v = signal.lfilter(*signal.butter(2, 3400 / (SR / 2)), v)
 # slow fading (multipath / skywave)
 t = np.arange(N) / SR
-fadeLFO = 0.78 + 0.14 * np.sin(2 * np.pi * 0.23 * t + 1) + 0.08 * np.sin(2 * np.pi * 0.71 * t)
+fadeLFO = 0.9 + 0.06 * np.sin(2 * np.pi * 0.17 * t + 1)
 # fast flutter
-flut = 1 - 0.25 * (signal.filtfilt(*signal.butter(1, 12 / (SR / 2)), rng.normal(0, 1, N)) > 0.35)
+flut = 1 - 0.12 * (signal.filtfilt(*signal.butter(1, 12 / (SR / 2)), rng.normal(0, 1, N)) > 0.35)
 v = v * fadeLFO * flut * m
 
 # ---------- noise bed ----------
@@ -178,7 +178,7 @@ hiss /= np.max(np.abs(hiss))
 hum = 0.5 * np.sin(2 * np.pi * 60 * t) + 0.25 * np.sin(2 * np.pi * 120 * t)
 # crackle: sparse impulses
 crack = np.zeros(N)
-idx = rng.choice(N, size=int(N / SR * 22), replace=False)
+idx = rng.choice(N, size=int(N / SR * 4), replace=False)
 crack[idx] = rng.uniform(-1, 1, len(idx))
 crack = signal.lfilter(*signal.butter(2, [800 / (SR / 2), 5000 / (SR / 2)], "band"), crack) * 4
 # heterodyne whistle drifting, louder when signal drops
@@ -190,11 +190,10 @@ burst = signal.lfilter(*signal.butter(2, [400 / (SR / 2), 4500 / (SR / 2)], "ban
 burst /= np.max(np.abs(burst))
 gurgle = 0.5 + 0.5 * (signal.filtfilt(*signal.butter(1, 25 / (SR / 2)), rng.normal(0, 1, N)) > 0)
 
-noise = (0.075 + 0.03 * np.sin(2 * np.pi * 0.31 * t)) * hiss \
-    + 0.012 * hum \
-    + 0.18 * crack \
-    + (0.006 + 0.03 * lost) * whistle \
-    + 1.5 * lost * gurgle * burst
+# steady, unobtrusive bed: constant hiss, a few sparse crackles, static only on dropouts
+noise = 0.05 * hiss \
+    + 0.10 * crack \
+    + 1.0 * lost * burst
 
 mix = v * 0.85 + noise
 # squelch clicks at start/end
